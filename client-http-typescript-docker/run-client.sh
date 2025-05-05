@@ -82,7 +82,7 @@ AWS_SESSION_TOKEN=$(echo "$CREDS" | jq -r '.SessionToken')
 AWS_REGION=$(aws configure get region)
 
 if [ -z "$AWS_REGION" ]; then
-    AWS_REGION="us-west-2"
+    AWS_REGION="us-east-1"
     echo "⚠️  No AWS region found in config, defaulting to $AWS_REGION"
 else
     echo "✅ Using region: $AWS_REGION"
