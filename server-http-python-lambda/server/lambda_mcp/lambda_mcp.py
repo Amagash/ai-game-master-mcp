@@ -1,4 +1,4 @@
-from lambda_mcp.types import (
+from .types import (
     JSONRPCRequest, 
     JSONRPCResponse,
     JSONRPCError,
@@ -8,7 +8,7 @@ from lambda_mcp.types import (
     TextContent,
     ErrorContent
 )
-from lambda_mcp.session import SessionManager
+from .session import SessionManager
 import json
 import logging
 from typing import Optional, Any, Dict, Callable, get_type_hints, List, TypeVar, Generic
@@ -44,15 +44,57 @@ class SessionData(Generic[T]):
 class LambdaMCPServer:
     """A class to handle MCP protocol in AWS Lambda"""
     
-    def __init__(self, name: str, version: str = "1.0.0", session_table: str = "mcp_sessions"):
+    def __init__(self, name: str, version: str = "1.0.0", session_table: str = "mcp_sessions", create_session_table: bool = True):
         self.name = name
         self.version = version
         self.tools: Dict[str, Dict] = {}
         self.tool_implementations: Dict[str, Callable] = {}
         self.session_manager = SessionManager(table_name=session_table)
-        # Ensure session table exists
-        self.session_manager.create_table(table_name=session_table)
+        # Ensure session table exists, unless bypassed for testing
+        if create_session_table:
+            self.session_manager.create_table(table_name=session_table)
+        # Register dice_roll tool
+        self._register_dice_roll_tool()
     
+    def _register_dice_roll_tool(self):
+        """
+        Register the dice_roll tool with the correct schema and implementation.
+        """
+        def dice_roll(dice_type: str, num_dice: int):
+            """
+            Roll one or more D&D dice and return the results and total.
+
+            Args:
+                dice_type: The type of dice to roll (e.g., 'd6', 'd20', 'd100'). Must be one of the standard D&D dice.
+                num_dice: The number of dice to roll (must be >= 1).
+            Returns:
+                A dictionary with the list of individual results and the total sum.
+            """
+            allowed_dice = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd100']
+            if dice_type not in allowed_dice:
+                raise ValueError(f"Invalid dice_type: {dice_type}. Allowed: {allowed_dice}")
+            if num_dice < 1:
+                raise ValueError("num_dice must be >= 1")
+            sides = int(dice_type[1:])
+            results = [random.randint(1, sides) for _ in range(num_dice)]
+            return {"results": results, "total": sum(results)}
+
+        # Register tool schema
+        tool_schema = {
+            "name": "diceRoll",
+            "description": "Roll one or more D&D dice and return the results and total.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "dice_type": {"type": "string", "description": "The type of dice to roll (e.g., 'd6', 'd20', 'd100'). Must be one of the standard D&D dice."},
+                    "num_dice": {"type": "integer", "description": "The number of dice to roll (must be >= 1)."}
+                },
+                "required": ["dice_type", "num_dice"]
+            }
+        }
+        self.tools["diceRoll"] = tool_schema
+        self.tool_implementations["diceRoll"] = dice_roll
+
     def get_session(self) -> Optional[SessionData]:
         """Get the current session data wrapper.
         
@@ -338,7 +380,6 @@ class LambdaMCPServer:
     def tool_decorator(self):
         return self.tool()
 
-    @tool()
     def dice_roll(self, dice_type: str, num_dice: int):
         """
         Roll one or more D&D dice and return the results and total.
