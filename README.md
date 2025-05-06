@@ -17,9 +17,13 @@ This project is an AI-powered Game Master platform using the MCP (Modular Comman
 ## Server Setup (AWS Lambda)
 
 ### Prerequisites
-- [AWS CLI](https://aws.amazon.com/cli/)
-- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
-- AWS account with permissions for Lambda, API Gateway, DynamoDB, and Bedrock
+- [AWS Account](https://aws.amazon.com/free/?trk=b8f00cc8-e51d-4bfd-bf44-9b5ffb6acd1a&sc_channel=el) with appropriate permissions
+- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html?trk=b8f00cc8-e51d-4bfd-bf44-9b5ffb6acd1a&sc_channel=el) installed
+- [Node.js and npm](https://nodejs.org/) (for the client)
+- [Docker](https://docs.docker.com/get-docker/) (for the client)
+- [Python 3.9+](https://www.python.org/downloads/)
+- Access to [Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html?trk=b8f00cc8-e51d-4bfd-bf44-9b5ffb6acd1a&sc_channel=el) in your AWS account
+- [Amazon Nova Pro](https://docs.aws.amazon.com/nova/latest/userguide/what-is-nova.html?trk=b8f00cc8-e51d-4bfd-bf44-9b5ffb6acd1a&sc_channel=el) enabled in your Amazon Bedrock model access settings
 
 ### Environment Variables
 Set these in your deployment or in `template.yaml`:
