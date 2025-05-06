@@ -61,6 +61,21 @@ Resources:
         - Key: Purpose
           Value: MCP Session Management
 
+  McpCharactersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: mcp-characters
+      AttributeDefinitions:
+        - AttributeName: character_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: character_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Purpose
+          Value: MCP Character Storage
+
   McpServerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -72,6 +87,7 @@ Resources:
           BEDROCK_AGENT_ID: "LVEURHFJE8"
           BEDROCK_AGENT_ALIAS_ID: "ZMMYRFTV0V"
           BEDROCK_REGION: "us-east-1"
+          CHARACTER_TABLE: !Ref McpCharactersTable
       Policies:
         - Statement:
             - Effect: Allow
@@ -88,6 +104,16 @@ Resources:
                 - dynamodb:UpdateItem
                 - dynamodb:DescribeTable
               Resource: !GetAtt McpSessionsTable.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+                - dynamodb:Scan
+                - dynamodb:Query
+                - dynamodb:DescribeTable
+              Resource: !GetAtt McpCharactersTable.Arn
         - Statement:
             - Effect: Allow
               Action: bedrock:InvokeAgent

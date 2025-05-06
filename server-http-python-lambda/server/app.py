@@ -4,6 +4,7 @@ import random
 import boto3
 import os
 import json
+import uuid
 # Get session table name from environment variable
 session_table = os.environ.get('MCP_SESSION_TABLE', 'mcp_sessions')
 
@@ -79,6 +80,66 @@ def retrieve_lore(query: str) -> str:
         return lore or "[ERROR] No lore returned from agent."
     except Exception as e:
         return f"[ERROR] Failed to retrieve lore: {str(e)}"
+
+@mcp_server.tool()
+def create_character(name: str, race: str, character_class: str, level: int = 1) -> str:
+    """Create a new character and store it in DynamoDB.
+    
+    Args:
+        name: The character's name.
+        race: The character's race.
+        character_class: The character's class.
+        level: The character's starting level (default 1).
+    
+    Returns:
+        A string with the new character's ID and a success message.
+    """
+    table_name = os.environ.get("CHARACTER_TABLE")
+    if not table_name:
+        return "[ERROR] CHARACTER_TABLE environment variable not set."
+    dynamodb = boto3.resource("dynamodb")
+    table = dynamodb.Table(table_name)
+    character_id = str(uuid.uuid4())
+    item = {
+        "character_id": character_id,
+        "name": name,
+        "race": race,
+        "character_class": character_class,
+        "level": level
+    }
+    try:
+        table.put_item(Item=item)
+        return f"Character created with ID: {character_id}"
+    except Exception as e:
+        return f"[ERROR] Failed to create character: {str(e)}"
+
+@mcp_server.tool()
+def get_character_by_name(name: str) -> str:
+    """Retrieve a character from DynamoDB by name.
+    
+    Args:
+        name: The character's name to search for.
+    
+    Returns:
+        A JSON string of the character details if found, or an error message.
+    """
+    table_name = os.environ.get("CHARACTER_TABLE")
+    if not table_name:
+        return "[ERROR] CHARACTER_TABLE environment variable not set."
+    dynamodb = boto3.resource("dynamodb")
+    table = dynamodb.Table(table_name)
+    try:
+        # Scan for the character by name (not efficient for large tables)
+        response = table.scan(
+            FilterExpression=boto3.dynamodb.conditions.Attr("name").eq(name)
+        )
+        items = response.get("Items", [])
+        if not items:
+            return f"[ERROR] No character found with name: {name}"
+        # Return the first match as JSON
+        return json.dumps(items[0], default=str)
+    except Exception as e:
+        return f"[ERROR] Failed to retrieve character: {str(e)}"
 
 def lambda_handler(event, context):
     """AWS Lambda handler function."""
