@@ -42,7 +42,7 @@ Set these in your deployment or in `template.yaml`:
    ```
 2. Install dependencies:
    ```sh
-   uv pip install -r server/requirements.txt
+   uv pip install -r requirements.txt
    ```
 3. Deploy with SAM:
    ```sh
