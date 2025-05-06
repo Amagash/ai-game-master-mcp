@@ -23,8 +23,8 @@ This project is an AI-powered Game Master platform using the MCP (Modular Comman
 
 ### Environment Variables
 Set these in your deployment or in `template.yaml`:
-- `BEDROCK_AGENT_ID`: Your Amazon Bedrock agent ID
-- `BEDROCK_AGENT_ALIAS_ID`: Your Bedrock agent alias ID
+- `BEDROCK_AGENT_ID`: Your Amazon Bedrock agent ID (NOT auto-created)
+- `BEDROCK_AGENT_ALIAS_ID`: Your Bedrock agent alias ID (NOT auto-created)
 - `BEDROCK_REGION`: AWS region (default: `us-east-1`)
 - `CHARACTER_TABLE`: DynamoDB table for characters (auto-created by SAM template)
 - `MCP_SESSION_TABLE`: DynamoDB table for sessions (auto-created)
@@ -71,6 +71,3 @@ Set these in your deployment or in `template.yaml`:
 - Check AWS CloudWatch logs for Lambda debugging.
 - Use the `/tools/list` endpoint to see all available tools.
 - Use environment variables for all sensitive or environment-specific configuration.
-
-## License
-MIT or your preferred license.
