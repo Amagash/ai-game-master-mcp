@@ -1,7 +1,9 @@
+import 'dotenv/config';
 import { BedrockRuntimeClient, ConverseCommand, type Message, type ContentBlock, type ToolUseBlock, type ToolResultBlock } from "@aws-sdk/client-bedrock-runtime";
 import { ConversationStopReason } from './types.js';
 import type { ConversationToolConfig } from './types.js';
 import { bedrockConfig } from '../config/bedrock.js';
+import { BedrockAgentClient, RetrieveCommand } from "@aws-sdk/client-bedrock-agent";
 
 export class ConverseAgent {
     private client: BedrockRuntimeClient;
@@ -119,4 +121,37 @@ export class ConverseAgent {
     clearMessages(): void {
         this.messages = [];
     }
-} 
+}
+
+const client = new BedrockAgentClient({ region: "us-east-1" });
+
+export async function queryKnowledgeBase(query: string) {
+    const command = new RetrieveCommand({
+        knowledgeBaseId: "5MTGUGIY3Y", // Your Knowledge Base ID
+        retrievalQuery: {
+            text: query
+        }
+    });
+
+    const response = await client.send(command);
+    // The response will contain retrievedResults
+    return response.retrievedResults?.map(r => r.content?.text).join('\n') || "No answer found.";
+}
+
+const tools = [
+  // ...other tools,
+  {
+    name: "retrieve_lore",
+    description: "Fetches relevant lore or rules from the campaign knowledge base using AWS Bedrock Knowledge Base.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string" }
+      },
+      required: ["query"]
+    },
+    function: async ({ query }: { query: string }) => {
+      return await queryKnowledgeBase(query);
+    }
+  }
+]; 

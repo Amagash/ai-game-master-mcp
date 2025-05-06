@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { MCPConverseClient } from './MCPConverseClient.js';
 import * as readline from 'readline';
 import chalk from 'chalk';

@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@aws-sdk/client-bedrock-agent": "^3.803.0"
+  }
+}

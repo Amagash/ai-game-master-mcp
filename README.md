@@ -7,3 +7,7 @@ cd server
 python -m pytest tests/
 ```
 
+server deploy
+
+sam build
+sam deploy --guided
