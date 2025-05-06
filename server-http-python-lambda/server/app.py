@@ -3,6 +3,7 @@ from datetime import datetime, UTC
 import random
 import boto3
 import os
+import json
 # Get session table name from environment variable
 session_table = os.environ.get('MCP_SESSION_TABLE', 'mcp_sessions')
 
@@ -33,6 +34,52 @@ def count_s3_buckets() -> int:
     s3 = boto3.client('s3')
     response = s3.list_buckets()
     return len(response['Buckets'])
+
+@mcp_server.tool()
+def retrieve_lore(query: str) -> str:
+    """Retrieve lore from the Amazon Bedrock agent based on the user's query.
+    
+    Args:
+        query: The user's lore question or search string.
+    
+    Returns:
+        A string containing the retrieved lore or relevant information.
+    """
+    # Use hardcoded values for now, as in your last edit
+    agent_id = "LVEURHFJE8"
+    alias_id = "ZMMYRFTV0V"
+    region = "us-east-1"
+
+    if not agent_id or not alias_id:
+        return "[ERROR] Bedrock agent configuration missing."
+    try:
+        bedrock = boto3.client("bedrock-agent-runtime", region_name=region)
+        response = bedrock.invoke_agent(
+            agentId=agent_id,
+            agentAliasId=alias_id,
+            sessionId="mcp-session",
+            inputText=query
+        )
+        lore = ""
+        for event in response["completion"]:
+            # Uncomment the next line to debug event structure in CloudWatch logs
+            # print(event)
+            if "chunk" in event:
+                chunk = event["chunk"]
+                # If chunk is a dict with 'bytes', decode it
+                if isinstance(chunk, dict) and "bytes" in chunk:
+                    lore += chunk["bytes"].decode("utf-8")
+                # If chunk is already bytes
+                elif isinstance(chunk, bytes):
+                    lore += chunk.decode("utf-8")
+                # If chunk is a string
+                elif isinstance(chunk, str):
+                    lore += chunk
+            elif "text" in event:
+                lore += event["text"]
+        return lore or "[ERROR] No lore returned from agent."
+    except Exception as e:
+        return f"[ERROR] Failed to retrieve lore: {str(e)}"
 
 def lambda_handler(event, context):
     """AWS Lambda handler function."""

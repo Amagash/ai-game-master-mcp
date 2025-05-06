@@ -7,7 +7,6 @@ import EventEmitter from 'events';
 
 export class MCPClient extends EventEmitter {
   private client: Client;
-  // private transport: SSEClientTransport;
   private transport: StreamableHTTPClientTransport;
 
   constructor(serverUrl: string, apiToken: string) {

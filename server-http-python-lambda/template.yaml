@@ -69,6 +69,9 @@ Resources:
       Environment:
         Variables:
           MCP_SESSION_TABLE: !Ref McpSessionsTable
+          BEDROCK_AGENT_ID: "LVEURHFJE8"
+          BEDROCK_AGENT_ALIAS_ID: "ZMMYRFTV0V"
+          BEDROCK_REGION: "us-east-1"
       Policies:
         - Statement:
             - Effect: Allow
@@ -85,6 +88,10 @@ Resources:
                 - dynamodb:UpdateItem
                 - dynamodb:DescribeTable
               Resource: !GetAtt McpSessionsTable.Arn
+        - Statement:
+            - Effect: Allow
+              Action: bedrock:InvokeAgent
+              Resource: arn:aws:bedrock:us-east-1:503606331109:agent-alias/LVEURHFJE8/ZMMYRFTV0V
       Events:
         McpAPI:
           Type: Api
