@@ -1,5 +1,4 @@
 from lambda_mcp.lambda_mcp import LambdaMCPServer
-from datetime import datetime, UTC
 import random
 import boto3
 import os
@@ -12,11 +11,13 @@ session_table = os.environ.get('MCP_SESSION_TABLE', 'mcp_sessions')
 mcp_server = LambdaMCPServer(name="mcp-lambda-server", version="1.0.0", session_table=session_table)
 
 @mcp_server.tool()
-def retrieve_lore(query: str) -> str:
-    """Retrieve lore from the Amazon Bedrock agent based on the user's query.
+def ask_rule_expert(query: str) -> str:
+    """Call an agent expert in the rules and lore of the game. 
+    Refer to the agent expert for game mechanics, anything about the universe, 
+    campaign creation and more to make a decision about the game.
     
     Args:
-        query: The user's lore question or search string.
+        query: The AI game master question about rules
     
     Returns:
         A string containing the retrieved lore or relevant information.
@@ -90,7 +91,7 @@ def create_character(name: str, race: str, character_class: str, level: int = 1)
 
 @mcp_server.tool()
 def get_character_by_name(name: str) -> str:
-    """Retrieve a character from DynamoDB by name.
+    """Retrieve a character all the information about a character by name.
     
     Args:
         name: The character's name to search for.
