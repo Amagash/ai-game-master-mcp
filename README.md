@@ -33,7 +33,9 @@ Set these in your deployment or in `template.yaml`:
 1. Install dependencies (if needed):
    ```sh
    cd server-http-python-lambda
-   pip install -r server/requirements.txt
+   uv venv .venv
+   source .venv/bin/activate
+   uv pip install -r server/requirements.txt
    ```
 2. Deploy with SAM:
    ```sh
@@ -47,6 +49,36 @@ Set these in your deployment or in `template.yaml`:
 - **createCharacter**: Create a new character in DynamoDB.
 - **getCharacterByName**: Retrieve a character by name from DynamoDB.
 - **diceRoll**: (Core tool) Roll D&D dice (always available).
+
+
+### Running Tests
+
+To run the Python tests for the server:
+
+1. Navigate to the server directory:
+   ```sh
+   cd server-http-python-lambda
+   ```
+2. (Optional) Activate your virtual environment:
+   ```sh
+   source .venv/bin/activate
+   # or
+   source venv/bin/activate
+   ```
+3. Run the tests with pytest:
+   ```sh
+   pytest
+   ```
+   For more detailed output:
+   ```sh
+   pytest -v
+   ```
+
+If you don't have pytest installed, you can add it with:
+```sh
+pip install pytest
+```
+
 
 ## Client Setup
 1. Go to the client directory:
