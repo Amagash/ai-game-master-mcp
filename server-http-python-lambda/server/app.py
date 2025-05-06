@@ -45,10 +45,9 @@ def retrieve_lore(query: str) -> str:
     Returns:
         A string containing the retrieved lore or relevant information.
     """
-    # Use hardcoded values for now, as in your last edit
-    agent_id = "LVEURHFJE8"
-    alias_id = "ZMMYRFTV0V"
-    region = "us-east-1"
+    agent_id = os.environ.get("BEDROCK_AGENT_ID")
+    alias_id = os.environ.get("BEDROCK_AGENT_ALIAS_ID")
+    region = os.environ.get("BEDROCK_REGION", "us-east-1")
 
     if not agent_id or not alias_id:
         return "[ERROR] Bedrock agent configuration missing."
