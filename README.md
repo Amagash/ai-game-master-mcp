@@ -1,9 +1,76 @@
-# ai-game-master-mcp
+# AI Game Master MCP
 
-to run the tests:
+This project is an AI-powered Game Master platform using the MCP (Modular Command Protocol) architecture. It features a serverless backend (AWS Lambda, API Gateway, DynamoDB) and a TypeScript client for interactive gameplay, rules queries, and character management.
+
+## Features
+- **Ask Rule Expert**: Query an Amazon Bedrock agent for rules, lore, and campaign advice.
+- **Character Management**: Create and retrieve characters stored in DynamoDB.
+- **Extensible Tools**: Add your own tools for custom game logic.
+
+## Project Structure
 ```
-activate venv
-cd server
-python -m pytest tests/
+/ai-game-master-mcp
+├── server-http-python-lambda/   # Python AWS Lambda backend (SAM)
+├── client-http-typescript-docker/ # TypeScript client
 ```
 
+## Server Setup (AWS Lambda)
+
+### Prerequisites
+- [AWS CLI](https://aws.amazon.com/cli/)
+- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
+- AWS account with permissions for Lambda, API Gateway, DynamoDB, and Bedrock
+
+### Environment Variables
+Set these in your deployment or in `template.yaml`:
+- `BEDROCK_AGENT_ID`: Your Amazon Bedrock agent ID
+- `BEDROCK_AGENT_ALIAS_ID`: Your Bedrock agent alias ID
+- `BEDROCK_REGION`: AWS region (default: `us-east-1`)
+- `CHARACTER_TABLE`: DynamoDB table for characters (auto-created by SAM template)
+- `MCP_SESSION_TABLE`: DynamoDB table for sessions (auto-created)
+
+### Deploying the Server
+1. Install dependencies (if needed):
+   ```sh
+   cd server-http-python-lambda
+   pip install -r server/requirements.txt
+   ```
+2. Deploy with SAM:
+   ```sh
+   sam build
+   sam deploy --guided
+   ```
+   Follow prompts to set environment variables and stack name.
+
+### Lambda Tools Available
+- **askRuleExpert**: Ask the Bedrock agent about rules or lore.
+- **createCharacter**: Create a new character in DynamoDB.
+- **getCharacterByName**: Retrieve a character by name from DynamoDB.
+- **diceRoll**: (Core tool) Roll D&D dice (always available).
+
+## Client Setup
+1. Go to the client directory:
+   ```sh
+   cd client-http-typescript-docker
+   ```
+2. Install dependencies:
+   ```sh
+   npm install
+   ```
+3. Run the client:
+   ```sh
+   ./run-client.sh
+   ```
+   Configure the client to point to your deployed server's API endpoint.
+
+## Customizing Tools
+- Add new tools in `server-http-python-lambda/server/app.py` using the `@mcp_server.tool()` decorator.
+- Update the docstring for each tool to set its description and parameter help.
+
+## Development Tips
+- Check AWS CloudWatch logs for Lambda debugging.
+- Use the `/tools/list` endpoint to see all available tools.
+- Use environment variables for all sensitive or environment-specific configuration.
+
+## License
+MIT or your preferred license.
