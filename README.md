@@ -34,14 +34,17 @@ Set these in your deployment or in `template.yaml`:
 - `MCP_SESSION_TABLE`: DynamoDB table for sessions (auto-created)
 
 ### Deploying the Server
-1. Install dependencies (if needed):
+1. Create a virtual environment:
    ```sh
    cd server-http-python-lambda
    uv venv .venv
    source .venv/bin/activate
+   ```
+2. Install dependencies:
+   ```sh
    uv pip install -r server/requirements.txt
    ```
-2. Deploy with SAM:
+3. Deploy with SAM:
    ```sh
    sam build
    sam deploy --guided
