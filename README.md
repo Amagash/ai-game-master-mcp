@@ -66,11 +66,9 @@ To run the Python tests for the server:
    ```sh
    cd server-http-python-lambda
    ```
-2. (Optional) Activate your virtual environment:
+2. Activate your virtual environment:
    ```sh
    source .venv/bin/activate
-   # or
-   source venv/bin/activate
    ```
 3. Run the tests with pytest:
    ```sh
@@ -80,11 +78,6 @@ To run the Python tests for the server:
    ```sh
    pytest -v
    ```
-
-If you don't have pytest installed, you can add it with:
-```sh
-pip install pytest
-```
 
 
 ## Client Setup
@@ -101,6 +94,8 @@ pip install pytest
    ./run-client.sh
    ```
    Configure the client to point to your deployed server's API endpoint.
+   For this, go to CloudFormation, click on the stack we previously deployed
+   for the server. In the "Outputs" section you will find the API Gateway endpoint URL for MCP server.
 
 ## Customizing Tools
 - Add new tools in `server-http-python-lambda/server/app.py` using the `@mcp_server.tool()` decorator.
