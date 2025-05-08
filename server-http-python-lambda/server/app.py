@@ -201,7 +201,27 @@ def lambda_handler(event, context):
                 # Handle listTools action
                 if action == "listTools":
                     logger.info("Listing tools")
+                    # Override the built-in diceRoll tool with our custom dice_roll tool
                     tools = list(mcp_server.tools.values())
+                    
+                    # Replace the built-in diceRoll tool with our custom one
+                    for i, tool in enumerate(tools):
+                        if tool["name"] == "diceRoll":
+                            tools[i] = {
+                                "name": "diceRoll",
+                                "description": "Roll dice using standard D&D notation.",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "dice_notation": {
+                                            "type": "string", 
+                                            "description": "Standard dice notation like '2d6', '1d20+5', '3d8-2', etc."
+                                        }
+                                    },
+                                    "required": ["dice_notation"]
+                                }
+                            }
+                    
                     logger.info(f"Found {len(tools)} tools")
                     return {
                         "statusCode": 200,
@@ -217,6 +237,24 @@ def lambda_handler(event, context):
                     tool_name = body.get("name")
                     tool_args = body.get("arguments", {})
                     logger.info(f"Calling tool: {tool_name} with args: {tool_args}")
+                    
+                    # Special handling for diceRoll with dice_notation parameter
+                    if tool_name == "diceRoll" and "dice_notation" in tool_args:
+                        try:
+                            result = dice_roll(tool_args["dice_notation"])
+                            logger.info(f"Dice roll result: {result}")
+                            return {
+                                "statusCode": 200,
+                                "headers": {"Content-Type": "application/json"},
+                                "body": json.dumps({"result": result})
+                            }
+                        except Exception as e:
+                            logger.error(f"Error executing dice roll: {str(e)}", exc_info=True)
+                            return {
+                                "statusCode": 500,
+                                "headers": {"Content-Type": "application/json"},
+                                "body": json.dumps({"error": f"Error executing dice roll: {str(e)}"})
+                            }
                     
                     if tool_name not in mcp_server.tool_implementations:
                         logger.error(f"Tool not found: {tool_name}")

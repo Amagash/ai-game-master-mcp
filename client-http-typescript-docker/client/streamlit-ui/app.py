@@ -3,7 +3,7 @@ import requests
 import time
 import os
 
-st.title("AI Game Master Chat (Streamlit UI)")
+st.title("AI Game Master")
 
 # MCP client API endpoint (local Express API in the same container)
 MCP_SERVER_URL = "http://localhost:8080/converse"
