@@ -3,7 +3,7 @@
 # Exit on any error
 set -e
 
-echo "🚀 Starting MCP Client..."
+echo "🚀 Starting MCP Client with AWS credentials..."
 
 # Config file for storing MCP URL and API Key
 CONFIG_FILE=".mcp-config"
@@ -63,37 +63,46 @@ echo "📦 Getting AWS credentials from your current session..."
 CURRENT_ROLE=$(aws sts get-caller-identity --query 'Arn' --output text)
 if [ $? -ne 0 ]; then
     echo "❌ Failed to get AWS credentials. Please check your AWS configuration."
-    exit 1
-fi
-echo "🔑 Using AWS Role: $CURRENT_ROLE"
-
-# Get credentials from current session
-echo "🔄 Getting AWS credentials..."
-CREDS=$(aws configure export-credentials)
-if [ $? -ne 0 ]; then
-    echo "❌ Failed to export AWS credentials"
-    exit 1
-fi
-
-# Extract credentials
-AWS_ACCESS_KEY_ID=$(echo "$CREDS" | jq -r '.AccessKeyId')
-AWS_SECRET_ACCESS_KEY=$(echo "$CREDS" | jq -r '.SecretAccessKey')
-AWS_SESSION_TOKEN=$(echo "$CREDS" | jq -r '.SessionToken')
-AWS_REGION=$(aws configure get region)
-
-if [ -z "$AWS_REGION" ]; then
-    AWS_REGION="us-east-1"
-    echo "⚠️  No AWS region found in config, defaulting to $AWS_REGION"
+    echo "⚠️ Continuing with mock responses only."
+    AWS_ACCESS_KEY_ID=""
+    AWS_SECRET_ACCESS_KEY=""
+    AWS_SESSION_TOKEN=""
+    AWS_REGION=$(aws configure get region || echo "us-east-1")
 else
-    echo "✅ Using region: $AWS_REGION"
+    echo "🔑 Using AWS Role: $CURRENT_ROLE"
+
+    # Get credentials from current session
+    echo "🔄 Getting AWS credentials..."
+    CREDS=$(aws configure export-credentials)
+    if [ $? -ne 0 ]; then
+        echo "❌ Failed to export AWS credentials"
+        echo "⚠️ Continuing with mock responses only."
+        AWS_ACCESS_KEY_ID=""
+        AWS_SECRET_ACCESS_KEY=""
+        AWS_SESSION_TOKEN=""
+        AWS_REGION=$(aws configure get region || echo "us-east-1")
+    else
+        # Extract credentials
+        AWS_ACCESS_KEY_ID=$(echo "$CREDS" | jq -r '.AccessKeyId')
+        AWS_SECRET_ACCESS_KEY=$(echo "$CREDS" | jq -r '.SecretAccessKey')
+        AWS_SESSION_TOKEN=$(echo "$CREDS" | jq -r '.SessionToken')
+        AWS_REGION=$(aws configure get region)
+
+        if [ -z "$AWS_REGION" ]; then
+            AWS_REGION="us-east-1"
+            echo "⚠️ No AWS region found in config, defaulting to $AWS_REGION"
+        else
+            echo "✅ Using region: $AWS_REGION"
+        fi
+    fi
 fi
 
 # Test the MCP URL with curl to verify it's accessible
 echo "🔍 Testing MCP server connection..."
-CURL_RESULT=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $MCP_TOKEN" "$MCP_URL/tools/list" || echo "failed")
+CURL_RESULT=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $MCP_TOKEN" -H "Content-Type: application/json" -d '{"action":"ping"}' "$MCP_URL" || echo "failed")
 
 if [ "$CURL_RESULT" = "failed" ]; then
-    echo "⚠️  Warning: Could not connect to MCP server at $MCP_URL"
+    echo "⚠️ Warning: Could not connect to MCP server at $MCP_URL"
     echo "    This might be due to network issues or the server being down."
     read -p "Do you want to continue anyway? (y/n): " CONTINUE
     if [ "$CONTINUE" != "y" ]; then
@@ -101,17 +110,17 @@ if [ "$CURL_RESULT" = "failed" ]; then
         exit 1
     fi
 elif [ "$CURL_RESULT" = "401" ] || [ "$CURL_RESULT" = "403" ]; then
-    echo "⚠️  Warning: Authentication failed with status $CURL_RESULT"
+    echo "⚠️ Warning: Authentication failed with status $CURL_RESULT"
     echo "    Please check your API token."
     read -p "Do you want to continue anyway? (y/n): " CONTINUE
     if [ "$CONTINUE" != "y" ]; then
         echo "Exiting..."
         exit 1
     fi
-elif [ "$CURL_RESULT" = "200" ]; then
+elif [ "$CURL_RESULT" = "200" ] || [ "$CURL_RESULT" = "204" ]; then
     echo "✅ Successfully connected to MCP server!"
 else
-    echo "⚠️  Warning: Received unexpected status code $CURL_RESULT from MCP server"
+    echo "⚠️ Warning: Received unexpected status code $CURL_RESULT from MCP server"
     read -p "Do you want to continue anyway? (y/n): " CONTINUE
     if [ "$CONTINUE" != "y" ]; then
         echo "Exiting..."
@@ -128,7 +137,7 @@ fi
 
 # Build the container if hash has changed or doesn't exist
 if [ "$CURRENT_HASH" != "$STORED_HASH" ]; then
-    echo "🏗️  Changes detected, rebuilding the client container..."
+    echo "🏗️ Changes detected, rebuilding the client container..."
     docker build -t mcp-client ./client
     echo "$CURRENT_HASH" > "$HASH_FILE"
 else
@@ -147,4 +156,4 @@ docker run -it \
     -e MCP_URL="$MCP_URL" \
     -e MCP_TOKEN="$MCP_TOKEN" \
     -v "$(pwd)/client/src:/app/src" \
-    mcp-client 
+    mcp-client

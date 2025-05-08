@@ -23,4 +23,4 @@ export const bedrockConfig = {
 export const serverConfig = {
     url: process.env.MCP_URL || 'http://localhost:3000',
     apiToken: process.env.MCP_TOKEN || '123123'
-}; 
+};

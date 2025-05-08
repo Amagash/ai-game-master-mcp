@@ -1,114 +1,95 @@
-import type { ConversationToolConfig, ConversationToolSpec, ToolUseBlock, ToolResultBlock } from './types.js';
+import chalk from 'chalk';
 
-interface ToolDefinition {
-    function: (name: string, input: any) => Promise<any>;
-    description: string;
-    inputSchema: {
-        type: string;
-        properties: Record<string, any>;
-        required?: string[];
-    };
-    originalName: string;
+type ToolFunction = (name: string, input: any) => Promise<any>;
+
+interface Tool {
+  name: string;
+  description: string;
+  function: ToolFunction;
+  schema: any;
 }
 
-export class ConverseTools implements ConversationToolConfig {
-    private tools: Record<string, ToolDefinition> = {};
-    private nameMapping: Record<string, string> = {};
+export class ConverseTools {
+  private tools: Map<string, Tool> = new Map();
 
-    private sanitizeName(name: string): string {
-        return name.replace(/-/g, '_');
+  /**
+   * Register a new tool
+   * @param name Tool name
+   * @param func Tool function implementation
+   * @param description Tool description
+   * @param schema JSON schema for tool parameters
+   */
+  public registerTool(name: string, func: ToolFunction, description: string, schema: any): void {
+    this.tools.set(name, {
+      name,
+      description,
+      function: func,
+      schema
+    });
+    console.log(`Registering tool - ${name}`);
+  }
+
+  /**
+   * Execute a tool by name with given input
+   * @param name Tool name
+   * @param input Tool input parameters
+   * @returns Tool execution result
+   */
+  public async executeTool(name: string, input: any): Promise<any> {
+    const tool = this.tools.get(name);
+    if (!tool) {
+      throw new Error(`Tool not found: ${name}`);
     }
 
-    registerTool(
-        name: string,
-        func: (name: string, input: any) => Promise<any>,
-        description: string,
-        inputSchema: {
-            type: string;
-            properties: Record<string, any>;
-            required?: string[];
-        }
-    ): void {
-        const sanitizedName = this.sanitizeName(name);
-        console.log(`Registering tool - ${sanitizedName}`);
-        
-        this.nameMapping[sanitizedName] = name;
-        this.tools[sanitizedName] = {
-            function: func,
-            description,
-            inputSchema,
-            originalName: name
-        };
+    try {
+      console.log(chalk.blue(`Executing tool ${name} with input:`), input);
+      const result = await tool.function(name, input);
+      console.log(chalk.green(`Tool ${name} execution result:`), result);
+      return result;
+    } catch (error) {
+      console.error(chalk.red(`Error executing tool ${name}:`), error);
+      throw error;
     }
+  }
 
-    getTools(): { tools: ConversationToolSpec[] } {
-        const toolSpecs: ConversationToolSpec[] = [];
-        
-        for (const [sanitizedName, tool] of Object.entries(this.tools)) {
-            toolSpecs.push({
-                toolSpec: {
-                    name: sanitizedName,
-                    description: tool.description,
-                    inputSchema: {
-                        json: tool.inputSchema
-                    }
-                }
-            });
-        }
+  /**
+   * Get all tools formatted for the model
+   * @returns Array of tools in the format expected by the model
+   */
+  public getToolsForModel(): any[] {
+    return Array.from(this.tools.values()).map(tool => ({
+      name: tool.name,
+      description: tool.description,
+      input_schema: {
+        type: 'object',
+        properties: tool.schema.properties || {},
+        required: tool.schema.required || []
+      }
+    }));
+  }
 
-        return { tools: toolSpecs };
-    }
+  /**
+   * Get a list of all registered tool names
+   * @returns Array of tool names
+   */
+  public getToolNames(): string[] {
+    return Array.from(this.tools.keys());
+  }
 
-    async executeToolAsync(payload: ToolUseBlock): Promise<ToolResultBlock> {
-        const { toolUseId, name: sanitizedName, input } = payload;
-        console.log(`Executing tool - Requested name: ${sanitizedName}`);
+  /**
+   * Check if a tool exists
+   * @param name Tool name
+   * @returns True if the tool exists
+   */
+  public hasTool(name: string): boolean {
+    return this.tools.has(name);
+  }
 
-        if (!(sanitizedName in this.tools)) {
-            throw new Error(`Unknown tool: ${sanitizedName}`);
-        }
-
-        try {
-            const tool = this.tools[sanitizedName];
-            // Use original name when calling the actual function
-            const result = await tool.function(tool.originalName, input);
-            // console.log('Tool result:', JSON.stringify(result, null, 2));
-
-            // Handle Bedrock-style content blocks
-            if (result?.content?.length > 0) {
-                const textContent = result.content.find(item => item.type === 'text');
-                if (textContent) {
-                    return {
-                        toolUseId,
-                        content: [{
-                            text: textContent.text
-                        }],
-                        status: 'success'
-                    };
-                }
-            }
-
-            // Fallback for non-content-block results
-            const text = typeof result === 'string' ? result : JSON.stringify(result);
-            return {
-                toolUseId,
-                content: [{
-                    text
-                }],
-                status: 'success'
-            };
-        } catch (error) {
-            return {
-                toolUseId,
-                content: [{
-                    text: `Error executing tool: ${error}`
-                }],
-                status: 'error'
-            };
-        }
-    }
-
-    clearTools(): void {
-        this.tools = {};
-        this.nameMapping = {};
-    }
-} 
+  /**
+   * Get the number of registered tools
+   * @returns Number of tools
+   */
+  public getToolCount(): number {
+    return this.tools.size;
+  }
+}

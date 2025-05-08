@@ -1,122 +1,186 @@
-import { BedrockRuntimeClient, ConverseCommand, type Message, type ContentBlock, type ToolUseBlock, type ToolResultBlock } from "@aws-sdk/client-bedrock-runtime";
-import { ConversationStopReason } from './types.js';
-import type { ConversationToolConfig } from './types.js';
-import { bedrockConfig } from '../config/bedrock.js';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { ConverseTools } from './ConverseTools.js';
+import chalk from 'chalk';
+import awsClientManager from '../config/aws-client.js';
 
 export class ConverseAgent {
-    private client: BedrockRuntimeClient;
-    private messages: Message[];
-    private tools?: ConversationToolConfig;
-    private responseOutputTags: string[];
+    private modelId: string;
+    private region: string;
+    private systemPrompt: string;
+    private tools: ConverseTools;
+    private bedrockClient: BedrockRuntimeClient;
 
-    constructor(
-        private modelId: string = bedrockConfig.modelId,
-        private region: string = bedrockConfig.region,
-        private systemPrompt: string = bedrockConfig.systemPrompt
-    ) {
-        this.client = new BedrockRuntimeClient({ region: this.region });
-        this.messages = [];
-        this.responseOutputTags = [];
+    constructor(modelId: string, region: string, systemPrompt: string) {
+        this.modelId = modelId;
+        this.region = region;
+        this.systemPrompt = systemPrompt;
+        this.tools = new ConverseTools();
     }
 
-    async invokeWithPrompt(prompt: string): Promise<string> {
-        const content: ContentBlock[] = [{ text: prompt }];
-        return this.invoke(content);
-    }
-
-    async invoke(content: ContentBlock[]): Promise<string> {
-        this.messages.push({
-            role: 'user',
-            content
-        });
-
-        const response = await this.getConverseResponse();
-        return this.handleResponse(response);
-    }
-
-    private async getConverseResponse(): Promise<any> {
-        const tools = this.tools?.getTools().tools || [];
-        // console.log('Tools:', JSON.stringify(tools, null, 2));
-
-        const requestBody = {
-            modelId: this.modelId,
-            messages: this.messages,
-            system: [{ text: this.systemPrompt }],
-            toolConfig: tools.length > 0 ? {
-                tools,
-                toolChoice: { auto: {} }
-            } : undefined,
-            ...bedrockConfig.inferenceConfig,
-            // anthropicVersion: bedrockConfig.anthropicVersion
-        };
-        // console.log('Request body:', JSON.stringify(requestBody, null, 2));
-
-        const command = new ConverseCommand(requestBody);
-        const response = await this.client.send(command);
-        // console.log('Response:', JSON.stringify(response, null, 2));
-        return response;
-    }
-
-    private async handleResponse(response: any): Promise<string> {
-        // Add the response to the conversation history
-        if (response.output?.message) {
-            this.messages.push(response.output.message);
-        }
-
-        const stopReason = response.stopReason;
-
-        if (stopReason === ConversationStopReason.END_TURN || stopReason === ConversationStopReason.STOP_SEQUENCE) {
-            try {
-                const message = response.output?.message;
-                const content = message?.content || [];
-                const text = content[0]?.text || '';
-
-                if (this.responseOutputTags.length === 2) {
-                    const pattern = new RegExp(`(?s).*${this.responseOutputTags[0]}(.*?)${this.responseOutputTags[1]}`);
-                    const match = pattern.exec(text);
-                    if (match) {
-                        return match[1];
-                    }
-                }
-                return text;
-            } catch (error) {
-                return '';
-            }
-        } else if (stopReason === ConversationStopReason.TOOL_USE) {
-            try {
-                const toolResults: ContentBlock[] = [];
-                const toolUses = response.output?.message?.content?.filter(item => 'toolUse' in item) || [];
-
-                for (const item of toolUses) {
-                    const toolUse = (item as { toolUse: ToolUseBlock }).toolUse;
-                    if (!toolUse) continue;
-
-                    const toolResult = await this.tools?.executeToolAsync(toolUse);
-                    if (toolResult) {
-                        toolResults.push({ toolResult });
-                    }
-                }
-
-                return this.invoke(toolResults);
-            } catch (error) {
-                throw new Error(`Failed to execute tool: ${error}`);
-            }
-        } else if (stopReason === ConversationStopReason.MAX_TOKENS) {
-            return this.invokeWithPrompt('Please continue.');
-        } else {
-            throw new Error(`Unknown stop reason: ${stopReason}`);
+    /**
+     * Initialize the agent with AWS credentials
+     */
+    public async initialize(): Promise<void> {
+        try {
+            // Initialize the AWS client manager
+            await awsClientManager.initialize();
+            
+            // Get a Bedrock client for our region
+            this.bedrockClient = awsClientManager.getBedrockClient(this.region);
+            
+            console.log(chalk.green(`ConverseAgent initialized with model ${this.modelId} in region ${this.region}`));
+        } catch (error) {
+            console.error(chalk.red('Failed to initialize ConverseAgent:'), error);
+            throw error;
         }
     }
 
-    setTools(tools: ConversationToolConfig): void {
+    /**
+     * Set the tools available to this agent
+     * @param tools ConverseTools instance
+     */
+    public setTools(tools: ConverseTools): void {
         this.tools = tools;
     }
 
-    setResponseOutputTags(tags: string[]): void {
-        this.responseOutputTags = tags;
+    /**
+     * Invoke the model with a user prompt
+     * @param prompt User input prompt
+     * @returns Model response
+     */
+    public async invokeWithPrompt(prompt: string): Promise<string> {
+        try {
+            // Ensure we have a Bedrock client
+            if (!this.bedrockClient) {
+                await this.initialize();
+            }
+
+            // Prepare the tools for the model
+            const toolsForModel = this.tools.getToolsForModel();
+            
+            // Build the request payload
+            const payload = {
+                anthropic_version: 'bedrock-2023-05-31',
+                max_tokens: 8192,
+                messages: [
+                    {
+                        role: 'system',
+                        content: this.systemPrompt
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                tools: toolsForModel,
+                temperature: 0.7,
+                top_p: 0.999
+            };
+
+            // Create the command
+            const command = new InvokeModelCommand({
+                modelId: this.modelId,
+                contentType: 'application/json',
+                accept: 'application/json',
+                body: JSON.stringify(payload)
+            });
+
+            // Invoke the model
+            console.log(chalk.yellow('Invoking Bedrock model...'));
+            const response = await this.bedrockClient.send(command);
+            
+            // Parse the response
+            const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+            
+            // Handle tool calls if present
+            if (responseBody.tool_calls && responseBody.tool_calls.length > 0) {
+                return await this.handleToolCalls(responseBody.tool_calls, prompt);
+            }
+            
+            // Return the model's response
+            return responseBody.content[0].text;
+        } catch (error) {
+            console.error(chalk.red('Error invoking model:'), error);
+            throw error;
+        }
     }
 
-    clearMessages(): void {
-        this.messages = [];
+    /**
+     * Handle tool calls from the model
+     * @param toolCalls Array of tool calls from the model
+     * @param originalPrompt The original user prompt
+     * @returns Final response after tool execution
+     */
+    private async handleToolCalls(toolCalls: any[], originalPrompt: string): Promise<string> {
+        try {
+            const toolResults = [];
+            
+            // Process each tool call
+            for (const toolCall of toolCalls) {
+                const toolName = toolCall.name;
+                const toolInput = JSON.parse(toolCall.parameters);
+                
+                console.log(chalk.blue(`Executing tool: ${toolName}`));
+                
+                // Execute the tool
+                const result = await this.tools.executeTool(toolName, toolInput);
+                
+                toolResults.push({
+                    tool_name: toolName,
+                    tool_input: toolInput,
+                    tool_result: result
+                });
+            }
+            
+            // Build a new prompt with the tool results
+            const toolResultsPrompt = `
+I asked: "${originalPrompt}"
+
+The following tools were used:
+${toolResults.map(r => `Tool: ${r.tool_name}
+Input: ${JSON.stringify(r.tool_input)}
+Result: ${JSON.stringify(r.tool_result)}`).join('\n\n')}
+
+Based on these results, please provide a final response.`;
+
+            // Invoke the model again with the tool results
+            const payload = {
+                anthropic_version: 'bedrock-2023-05-31',
+                max_tokens: 8192,
+                messages: [
+                    {
+                        role: 'system',
+                        content: this.systemPrompt
+                    },
+                    {
+                        role: 'user',
+                        content: toolResultsPrompt
+                    }
+                ],
+                temperature: 0.7,
+                top_p: 0.999
+            };
+
+            // Create the command
+            const command = new InvokeModelCommand({
+                modelId: this.modelId,
+                contentType: 'application/json',
+                accept: 'application/json',
+                body: JSON.stringify(payload)
+            });
+
+            // Invoke the model
+            console.log(chalk.yellow('Invoking Bedrock model with tool results...'));
+            const response = await this.bedrockClient.send(command);
+            
+            // Parse the response
+            const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+            
+            // Return the model's response
+            return responseBody.content[0].text;
+        } catch (error) {
+            console.error(chalk.red('Error handling tool calls:'), error);
+            throw error;
+        }
     }
-} 
+}

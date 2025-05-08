@@ -20,6 +20,15 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Install Python3 and pip
+RUN apk add --no-cache python3 py3-pip
+
+# Create and activate a virtual environment for Python packages
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --upgrade pip
+RUN pip install streamlit requests
+
 # Copy package files and install production dependencies
 COPY package*.json ./
 RUN npm install --omit=dev
@@ -27,9 +36,19 @@ RUN npm install --omit=dev
 # Copy built JavaScript from builder stage
 COPY --from=build /app/dist ./dist
 
+# Copy Streamlit UI
+COPY streamlit-ui ./streamlit-ui
+
 # Set environment variables
 ENV NODE_ENV=production
 ENV MCP_SSE_URL=http://mcp-server:8000/sse
 
-# Start the app
-CMD ["node", "dist/index.js"] 
+# Expose Express and Streamlit ports
+EXPOSE 8080 8501
+
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Start both Express and Streamlit
+CMD ["/entrypoint.sh"] 
