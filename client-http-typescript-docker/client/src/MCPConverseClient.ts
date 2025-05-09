@@ -167,20 +167,9 @@ export class MCPConverseClient extends MCPClient {
                     body: JSON.stringify(payload)
                 });
 
-                // Invoke the model with a longer timeout
+                // Invoke the model
                 console.log(chalk.yellow('Invoking Bedrock model...'));
-                
-                // Set a longer timeout for the AWS SDK client
-                const clientWithTimeout = new BedrockRuntimeClient({
-                    region: this.region,
-                    credentials: awsClientManager.getCredentials(),
-                    maxAttempts: 3,
-                    requestHandler: {
-                        timeout: 300000 // 5 minutes in milliseconds
-                    }
-                });
-                
-                const response = await clientWithTimeout.send(command);
+                const response = await this.bedrockClient.send(command);
                 
                 // Parse the response
                 const responseBody = JSON.parse(new TextDecoder().decode(response.body));
@@ -294,20 +283,9 @@ Based on these results, please provide a final response.`;
                         body: JSON.stringify(payload)
                     });
 
-                    // Invoke the model with a longer timeout
+                    // Invoke the model
                     console.log(chalk.yellow('Invoking Bedrock model with tool results...'));
-                    
-                    // Set a longer timeout for the AWS SDK client
-                    const clientWithTimeout = new BedrockRuntimeClient({
-                        region: this.region,
-                        credentials: awsClientManager.getCredentials(),
-                        maxAttempts: 3,
-                        requestHandler: {
-                            timeout: 300000 // 5 minutes in milliseconds
-                        }
-                    });
-                    
-                    const response = await clientWithTimeout.send(command);
+                    const response = await this.bedrockClient.send(command);
                     
                     // Parse the response
                     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
