@@ -84,8 +84,8 @@ Resources:
       Environment:
         Variables:
           MCP_SESSION_TABLE: !Ref McpSessionsTable
-          BEDROCK_AGENT_ID: "BEDROCK_AGENT_ID"
-          BEDROCK_AGENT_ALIAS_ID: "BEDROCK_AGENT_ALIAS_ID"
+          BEDROCK_AGENT_ID: "LVEURHFJE8"
+          BEDROCK_AGENT_ALIAS_ID: "ZMMYRFTV0V"
           BEDROCK_REGION: "us-east-1"
           CHARACTER_TABLE: !Ref McpCharactersTable
       Policies:

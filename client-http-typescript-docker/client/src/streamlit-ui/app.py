@@ -2,6 +2,17 @@ import streamlit as st
 import requests
 import time
 import json
+import functools
+
+# Create a session with increased timeout and retry settings
+session = requests.Session()
+adapter = requests.adapters.HTTPAdapter(max_retries=5)
+session.mount('http://', adapter)
+session.mount('https://', adapter)
+
+# Set default timeout for all requests in this session
+original_request = session.request
+session.request = functools.partial(original_request, timeout=300)  # 5 minutes
 
 st.title("AI Game Master Chat (Streamlit UI)")
 
@@ -16,12 +27,14 @@ if "messages" not in st.session_state:
 # Function to check if API is available
 def check_api_health():
     try:
-        response = requests.get(HEALTH_URL, timeout=2)
+        # Use session with default timeout
+        response = session.get(HEALTH_URL)
         if response.status_code == 200:
             data = response.json()
             return True, data.get('aws', 'disconnected')
         return False, 'disconnected'
-    except:
+    except Exception as e:
+        st.sidebar.error(f"Health check error: {str(e)}")
         return False, 'disconnected'
 
 # Display API status in sidebar
@@ -44,27 +57,13 @@ if st.sidebar.button("Roll Dice"):
     
     try:
         with st.spinner("Rolling dice..."):
-            response = requests.post(MCP_SERVER_URL, json={"input": user_message}, timeout=10)
+            # Use session with default timeout
+            response = session.post(MCP_SERVER_URL, json={"input": user_message})
             resp_json = response.json()
             server_reply = resp_json.get("reply", "[No response]")
     except Exception as e:
-        server_reply = f"[Error contacting client API: {e}]"
-    
-    st.session_state.messages.append(("GM", server_reply))
-    st.rerun()
-
-# User input
-user_input = st.text_input("You:", key="user_input")
-if st.button("Send") and user_input:
-    st.session_state.messages.append(("You", user_input))
-    
-    try:
-        with st.spinner("The Game Master is thinking..."):
-            response = requests.post(MCP_SERVER_URL, json={"input": user_input}, timeout=30)
-            resp_json = response.json()
-            server_reply = resp_json.get("reply", "[No response]")
-    except Exception as e:
-        server_reply = f"[Error contacting client API: {e}]"
+        server_reply = f"[Error contacting client API: {str(e)}]"
+        st.sidebar.error(f"API Error: {str(e)}")
     
     st.session_state.messages.append(("GM", server_reply))
     st.rerun()
@@ -79,4 +78,22 @@ for sender, msg in st.session_state.messages:
 # Add a clear chat button
 if st.button("Clear Chat"):
     st.session_state.messages = []
+    st.rerun()
+
+# User input with chat_input (supports Enter key by default)
+user_input = st.chat_input("Type your message and press Enter...")
+if user_input:
+    st.session_state.messages.append(("You", user_input))
+    
+    try:
+        with st.spinner("The Game Master is thinking... (This may take up to 5 minutes for complex queries)"):
+            # Use session with default timeout
+            response = session.post(MCP_SERVER_URL, json={"input": user_input})
+            resp_json = response.json()
+            server_reply = resp_json.get("reply", "[No response]")
+    except Exception as e:
+        server_reply = f"[Error contacting client API: {str(e)}]"
+        st.sidebar.error(f"API Error: {str(e)}")
+    
+    st.session_state.messages.append(("GM", server_reply))
     st.rerun()

@@ -132,7 +132,10 @@ export class AWSClientManager {
       const client = new BedrockRuntimeClient({
         region,
         credentials: this.createCredentialProviderChain(),
-        maxAttempts: 3
+        maxAttempts: 3,
+        requestHandler: {
+          timeout: 300000 // 5 minutes in milliseconds
+        }
       });
       
       this.bedrockClients.set(region, client);
@@ -143,6 +146,14 @@ export class AWSClientManager {
       console.error(chalk.red(`Failed to create Bedrock client for region ${region}:`), error);
       return null;
     }
+  }
+
+  /**
+   * Get the credentials directly
+   * @returns AWS credentials or null if not available
+   */
+  public getCredentials() {
+    return this.createCredentialProviderChain();
   }
 
   /**

@@ -41,7 +41,8 @@ export class MCPClient extends EventEmitter {
       // Use a direct endpoint that doesn't require authentication first
       try {
         const healthResponse = await axios.get(`${this.serverUrl.replace('/mcp', '')}/health`, {
-          timeout: 5000
+          // Increased timeout to 30 seconds for health check
+          timeout: 30000
         });
         
         console.log(chalk.green('API is reachable. Status:'), healthResponse.status);
@@ -57,7 +58,8 @@ export class MCPClient extends EventEmitter {
           'Authorization': `Bearer ${this.apiToken}`,
           'Content-Type': 'application/json'
         },
-        timeout: 5000
+        // Increased timeout to 30 seconds for ping
+        timeout: 30000
       });
       
       // Accept 200 or 204 as success (204 is "No Content" but still success)
@@ -68,22 +70,19 @@ export class MCPClient extends EventEmitter {
         throw new Error(`Connection test failed with status: ${response.status}`);
       }
       
-      // Set up event listeners for server-sent events
-      this.setupSSEConnection();
+      // Set up polling for updates
+      this.setupUpdatePolling();
     } catch (error) {
       console.error(chalk.red('Error connecting to MCP server:'), error);
       throw new Error(`Failed to connect to MCP server: ${error.message}`);
     }
   }
 
-  private setupSSEConnection(): void {
+  private setupUpdatePolling(): void {
     try {
-      console.log(chalk.blue('Setting up SSE connection for real-time updates...'));
+      console.log(chalk.blue('Setting up periodic polling for updates...'));
       
-      // This is a simplified version - in a real implementation, you would use EventSource
-      // or a similar library to establish an SSE connection
-      
-      // For now, we'll just simulate the connection with periodic polling
+      // Set up periodic polling for updates
       setInterval(async () => {
         try {
           // Poll for updates
@@ -91,7 +90,8 @@ export class MCPClient extends EventEmitter {
             headers: {
               'Authorization': `Bearer ${this.apiToken}`
             },
-            timeout: 2000
+            // Increased timeout to 30 seconds for updates
+            timeout: 30000
           }).catch(() => null);
           
           if (response && response.status === 200 && response.data) {
@@ -109,9 +109,9 @@ export class MCPClient extends EventEmitter {
         }
       }, 30000); // Poll every 30 seconds
       
-      console.log(chalk.green('SSE connection setup complete'));
+      console.log(chalk.green('Update polling setup complete'));
     } catch (error) {
-      console.error(chalk.red('Error setting up SSE connection:'), error);
+      console.error(chalk.red('Error setting up update polling:'), error);
     }
   }
 
@@ -126,7 +126,8 @@ export class MCPClient extends EventEmitter {
           'Authorization': `Bearer ${this.apiToken}`,
           'Content-Type': 'application/json'
         },
-        timeout: 5000
+        // Increased timeout to 60 seconds for tool listing
+        timeout: 60000
       });
       
       // Handle both 200 and 204 responses
@@ -177,7 +178,8 @@ export class MCPClient extends EventEmitter {
           'Authorization': `Bearer ${this.apiToken}`,
           'Content-Type': 'application/json'
         },
-        timeout: 10000
+        // Increased timeout to 180 seconds (3 minutes) for tool calls
+        timeout: 180000
       });
       
       // Handle both 200 and 204 responses

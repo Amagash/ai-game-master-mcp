@@ -60,16 +60,31 @@ app.post('/converse', async (req, res) => {
             return res.json({ reply: 'pong' });
         }
         
+        // Set a longer timeout for the response (10 minutes)
+        res.setTimeout(600000, () => {
+            console.log(chalk.red('[API] Response timeout after 10 minutes'));
+            res.status(504).json({ error: 'Response timeout after 10 minutes' });
+        });
+        
         // Get the shared client
         const client = await initializeSharedClient();
         
         // Use the shared client to invoke the model
+        console.log(chalk.blue(`[API] Invoking model with input: ${userInput}`));
         const response = await client.invokeWithPrompt(userInput);
-        console.log(chalk.green(`[API] Sending response for: ${userInput}`));
         
+        // Log the response details for debugging
+        console.log(chalk.green(`[API] Received response from model: ${response.substring(0, 100)}...`));
+        console.log(chalk.green(`[API] Response type: ${typeof response}`));
+        console.log(chalk.green(`[API] Response length: ${response.length}`));
+        
+        // Send the response with explicit content type
+        res.setHeader('Content-Type', 'application/json');
         res.json({ reply: response });
+        console.log(chalk.green(`[API] Response sent successfully for: ${userInput}`));
     } catch (error) {
         console.error(chalk.red(`[API] Error: ${error}`));
+        console.error(chalk.red(`[API] Error stack: ${error.stack}`));
         res.status(500).json({ error: error?.toString() || 'Unknown error' });
     }
 });
@@ -78,6 +93,11 @@ app.post('/converse', async (req, res) => {
 const server = app.listen(8080, '0.0.0.0', () => {
     console.log(chalk.green('Express API listening on port 8080 (0.0.0.0)'));
 });
+
+// Configure server timeout settings
+server.timeout = 600000; // 10 minutes in milliseconds
+server.keepAliveTimeout = 600000;
+server.headersTimeout = 601000; // slightly higher than keepAliveTimeout
 
 // Prevent the Node.js process from exiting when the CLI part exits
 process.on('SIGINT', () => {
